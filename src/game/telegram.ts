@@ -86,8 +86,8 @@ export function cloudSave(json: string): Promise<boolean> {
 
 // ---------- Поделиться ----------
 
-/** Ссылка на игру в Telegram. Заполнить, когда появится бот (например, https://t.me/имя_бота/app) */
-export const GAME_URL = '';
+/** Ссылка на игру в Telegram — Mini App бота */
+export const GAME_URL = 'https://t.me/dymny_dvorik_bot/Dymny_Dvorik';
 
 /**
  * В Telegram открывает выбор чата для отправки, в браузере — системное «Поделиться»
