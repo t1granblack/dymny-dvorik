@@ -16,6 +16,7 @@ import Shop from './screens/Shop';
 import DailyModal from './screens/DailyModal';
 import { isHappy, reactionMood } from './game/reactions';
 import { sfx } from './game/sound';
+import { track } from './game/analytics';
 import Upgrades from './screens/Upgrades';
 import Recipes from './screens/Recipes';
 import ServeFlow from './serve/ServeFlow';
@@ -121,6 +122,11 @@ export default function App() {
   useEffect(() => {
     if (!ready || !save.ageOk || dailyShown.current) return;
     dailyShown.current = true;
+    // Открытие игры: по нему считаются ежедневные игроки и удержание D1/D7/D30
+    track('app_open', {
+      level: save.level, location: save.location, served: save.served, link: startParam().split('_')[0] || null,
+      $set: { level: save.level, location: save.location, served: save.served },
+    });
     setSave((s) => refreshDaily(s));
     if (nextStreak(save.daily) !== null) setDailyOpen(true);
   }, [ready, save.ageOk]);
@@ -174,6 +180,8 @@ export default function App() {
     if (gift) {
       const { save: next, result } = importSignature(save, gift);
       setSave(next);
+      // Переход по ссылке «попробуй мой микс» — главный вирусный канал
+      track('mix_link_opened', { result, fromFriend: !!gift.from });
       const who = gift.from ? ` от ${gift.from}` : '';
       if (result === 'added') {
         setTab('recipes');
@@ -215,6 +223,14 @@ export default function App() {
   const finishGuest = (guest: Guest, r: ServeResult) => {
     const { save: next, levelUps } = applyResult(save, r);
     setSave(next);
+    track('guest_served', {
+      guest: guest.type.id, stars: r.stars, mix: r.mix, pack: r.pack, heat: r.heat, coins: r.coins + r.tips,
+      flavors: r.flavors, signature: !!r.signature, boss: r.boss, dog: r.dogGuessed !== null, gotd: r.gotd,
+      level: save.level, location: save.location, served: next.served,
+    });
+    // Обучение — первые 3 гостя: по этому событию видно, где новички бросают игру
+    if (save.served < 3) track('tutorial_step', { step: next.served });
+    levelUps.forEach((level) => track('level_up', { level }));
     setQueue((q) => {
       const rest = q.filter((g) => g.key !== guest.key);
       return rest.length ? rest : [randomGuest(next.level, guest.type.id)];
@@ -236,7 +252,10 @@ export default function App() {
         save={save}
         guest={serving}
         onDone={(r) => finishGuest(serving, r)}
-        onCancel={() => setServing(null)}
+        onCancel={(step) => {
+          track('serve_cancelled', { guest: serving.type.id, step });
+          setServing(null);
+        }}
         onSeenHint={(id) => setSave((s) => (s.seenHints.includes(id) ? s : { ...s, seenHints: [...s.seenHints, id] }))}
       />
     );

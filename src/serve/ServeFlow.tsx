@@ -16,7 +16,7 @@ interface Props {
   save: Save;
   guest: Guest;
   onDone: (r: ServeResult) => void;
-  onCancel: () => void;
+  onCancel: (step: string) => void;
   onSeenHint: (id: string) => void;
 }
 
@@ -37,7 +37,7 @@ export default function ServeFlow({ save, guest, onDone, onCancel, onSeenHint }:
   return (
     <div className={'app serve' + (boss ? ' boss-serve' : '')}>
       <header className="serve-head">
-        <button className="btn ghost" onClick={onCancel}><Icon name="close" size={22} /></button>
+        <button className="btn ghost" onClick={() => onCancel(step)}><Icon name="close" size={22} /></button>
         <div className="steps">
           {STEPS.map((s) => (
             <span key={s} className={s === step ? 'on' : STEPS.indexOf(s) < STEPS.indexOf(step) ? 'done' : ''}>

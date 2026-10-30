@@ -4,6 +4,7 @@ import { Icon } from '../art/Icon';
 import { MAX_SIGNATURES, Save, Signature, encodeMix, shares, signatureText, signatureUsable } from '../game/state';
 import { BOSS, COMBOS, DOG, FLAVORS, GUESTS, TAG_LABEL, flavorById, mixSlots } from '../game/data';
 import { GAME_URL, shareText, tgUser } from '../game/telegram';
+import { track } from '../game/analytics';
 import { Avatar } from './Hall';
 import SignatureEditor from './SignatureEditor';
 
@@ -22,6 +23,7 @@ export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Sa
     // Ссылка несёт сам микс: друг откроет игру — и микс уже у него в фирменных
     const link = `${GAME_URL}?startapp=${encodeMix(sig, tgUser()?.first_name)}`;
     const how = await shareText(signatureText(sig), link);
+    track('mix_shared', { via: how, parts: sig.parts.length, weird: sig.parts.some((p) => flavorById(p.id).weird) });
     if (how === 'copied') setNote('Текст скопирован — вставь его в любой чат');
     if (how === 'failed') setNote('Не получилось поделиться');
   };
@@ -70,6 +72,7 @@ export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Sa
           onClose={() => setEditing(false)}
           onSave={(sig) => {
             setSave({ ...save, signatures: [...save.signatures, sig] });
+            track('signature_created', { parts: sig.parts.map((p) => p.id) });
             setEditing(false);
           }}
         />

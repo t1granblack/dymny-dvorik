@@ -3,6 +3,7 @@ import { GOTD_AFTER, GOTD_CLOUDS, DAILY_REWARDS, nextStreak, questText, today } 
 import { Save, claimDaily, claimQuest } from '../game/state';
 import { haptic } from '../game/telegram';
 import { sfx } from '../game/sound';
+import { track } from '../game/analytics';
 
 interface Props {
   save: Save;
@@ -20,6 +21,7 @@ export default function DailyModal({ save, setSave, onClose }: Props) {
   const takeDaily = () => {
     const { save: next, reward } = claimDaily(save);
     if (!reward) return;
+    track('daily_claimed', { streak: next.daily.streak });
     haptic.success();
     sfx.coins();
     setSave(next);
@@ -28,6 +30,7 @@ export default function DailyModal({ save, setSave, onClose }: Props) {
   const takeQuest = (id: string) => {
     haptic.success();
     sfx.coins();
+    track('quest_claimed', { kind: save.quests.list.find((q) => q.id === id)?.kind });
     setSave(claimQuest(save, id));
   };
 

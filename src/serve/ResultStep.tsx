@@ -6,6 +6,7 @@ import { GuestType, flavorById } from '../game/data';
 import { GAME_URL, haptic, shareStory, storiesSupported } from '../game/telegram';
 import { reactionLine, reactionMood } from '../game/reactions';
 import { sfx } from '../game/sound';
+import { track } from '../game/analytics';
 import { Person } from '../screens/Hall';
 
 interface Props {
@@ -87,7 +88,10 @@ export default function ResultStep({ guest, result: r, parts, bossLine, onNext }
         {r.stars === 3 && storiesSupported() && (
           <button
             className="btn big"
-            onClick={() => shareStory('stories/three-stars.png', `Шедевр на 3 звезды в «Дымном дворике»! Сможешь так же? ${GAME_URL}`)}
+            onClick={() => {
+              track('story_shared', { guest: guest.id });
+              shareStory('stories/three-stars.png', `Шедевр на 3 звезды в «Дымном дворике»! Сможешь так же? ${GAME_URL}`);
+            }}
           >
             <Icon name="share" size={20} /> В историю
           </button>

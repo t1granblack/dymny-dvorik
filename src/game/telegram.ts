@@ -14,7 +14,7 @@ interface TgWebApp {
   isVersionAtLeast?(version: string): boolean;
   openTelegramLink?(url: string): void;
   CloudStorage?: TgCloudStorage;
-  initDataUnsafe?: { user?: { first_name?: string; photo_url?: string }; start_param?: string };
+  initDataUnsafe?: { user?: { id?: number; first_name?: string; photo_url?: string; language_code?: string }; start_param?: string };
   setHeaderColor?(color: string): void;
   setBackgroundColor?(color: string): void;
   setBottomBarColor?(color: string): void;

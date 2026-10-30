@@ -5,6 +5,7 @@ import { Save, moveCheck, moveToNext } from '../game/state';
 import { HELPER, MAX_UPGRADE, UPGRADES, helperUpCost, locationById, upgradeCost } from '../game/data';
 import { haptic } from '../game/telegram';
 import { sfx } from '../game/sound';
+import { track } from '../game/analytics';
 
 interface Props {
   save: Save;
@@ -23,6 +24,7 @@ export default function Upgrades({ save, setSave, onMoved }: Props) {
     haptic.success();
     sfx.levelUp();
     setSave(next);
+    track('location_moved', { to: next.location, level: save.level, coins: save.coins });
     setConfirmMove(false);
     onMoved(locationById(next.location).name);
   };
@@ -31,6 +33,7 @@ export default function Upgrades({ save, setSave, onMoved }: Props) {
     if (save.coins < cost) return;
     haptic.hit();
     sfx.buy();
+    track('upgrade_bought', { upgrade: id, level: save.upgrades[id] + 1, cost, location: save.location });
     setSave({ ...save, coins: save.coins - cost, upgrades: { ...save.upgrades, [id]: save.upgrades[id] + 1 } });
   };
 
@@ -39,6 +42,7 @@ export default function Upgrades({ save, setSave, onMoved }: Props) {
     if (save.coins < helperCost) return;
     haptic.hit();
     sfx.buy();
+    track('upgrade_bought', { upgrade: 'helper', level: save.helper + 1, cost: helperCost });
     // При найме отсчёт офлайн-дохода начинается с этого момента
     setSave({
       ...save,

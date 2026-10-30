@@ -4,6 +4,7 @@ import { Guest, Save, canAffordUpgrade, pendingIncome, helperRate } from '../gam
 import { GuestType, HELPER, LocationId, locationById, xpToNext } from '../game/data';
 import { addToHomeScreen, haptic, homeScreenStatus, tgUser } from '../game/telegram';
 import { audioPrefs, setMusic, setSfx, sfx } from '../game/sound';
+import { track } from '../game/analytics';
 import { Character, Cheremsha, Dog } from '../art/Character';
 import type { Mood } from '../art/Character';
 import { Icon } from '../art/Icon';
@@ -86,6 +87,7 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
     if (!pending) return;
     haptic.success();
     sfx.coins();
+    track('offline_collected', { coins: pending, helper: save.helper });
     setSave({ ...save, coins: save.coins + pending, lastCollect: Date.now() });
   };
 
