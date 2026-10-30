@@ -2,22 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from './art/Icon';
 import {
   Save, loadSave, storeSave, applyResult, ServeResult, Guest, randomGuest, canAffordUpgrade,
-  bossDue, withNewGuest, parseSave, decodeMix, importSignature,
+  bossDue, withNewGuest, parseSave, decodeMix, importSignature, refreshDaily, dailyAttention,
 } from './game/state';
+import { nextStreak } from './game/daily';
 import { seats } from './game/data';
 import {
   bindBackButton, cloudAvailable, cloudLoad, cloudSave, haptic, setClosingConfirmation, startParam, tgUser,
 } from './game/telegram';
 import AgeGate from './screens/AgeGate';
-import Hall from './screens/Hall';
+import Hall, { TopBar } from './screens/Hall';
 import type { Leaving } from './screens/Hall';
+import Shop from './screens/Shop';
+import DailyModal from './screens/DailyModal';
 import { isHappy, reactionMood } from './game/reactions';
 import { sfx } from './game/sound';
 import Upgrades from './screens/Upgrades';
 import Recipes from './screens/Recipes';
 import ServeFlow from './serve/ServeFlow';
 
-type Tab = 'hall' | 'upgrades' | 'recipes';
+type Tab = 'hall' | 'upgrades' | 'recipes' | 'shop';
 
 export default function App() {
   const [save, setSave] = useState<Save>(loadSave);
@@ -28,6 +31,7 @@ export default function App() {
   });
   const [serving, setServing] = useState<Guest | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [dailyOpen, setDailyOpen] = useState(false);
   const [leaving, setLeaving] = useState<Leaving | null>(null);
 
   useEffect(() => {
@@ -89,7 +93,8 @@ export default function App() {
 
   // Игрок свернул Telegram — дописываем в облако то, что не успели
   useEffect(() => {
-    const onHide = () => document.visibilityState === 'hidden' && flushCloud();
+    // Свернул — дописываем облако; вернулся (возможно, уже на следующий день) — обновляем задания
+    const onHide = () => (document.visibilityState === 'hidden' ? flushCloud() : setSave((s) => refreshDaily(s)));
     document.addEventListener('visibilitychange', onHide);
     return () => document.removeEventListener('visibilitychange', onHide);
   }, []);
@@ -110,6 +115,24 @@ export default function App() {
     }, 6000);
     return () => clearInterval(id);
   }, []);
+
+  // Первый вход за день: свежие задания и окно с наградой за вход
+  const dailyShown = useRef(false);
+  useEffect(() => {
+    if (!ready || !save.ageOk || dailyShown.current) return;
+    dailyShown.current = true;
+    setSave((s) => refreshDaily(s));
+    if (nextStreak(save.daily) !== null) setDailyOpen(true);
+  }, [ready, save.ageOk]);
+
+  const gotdKey = queue.find((g) => g.gotd)?.key;
+  useEffect(() => {
+    if (gotdKey) {
+      haptic.success();
+      sfx.doorbell();
+      setToast('Пришёл гость дня — ищи корону!');
+    }
+  }, [gotdKey]);
 
   const bossKey = queue.find((g) => g.type.boss)?.key;
   useEffect(() => {
@@ -221,6 +244,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="topbar-wrap">
+        <TopBar save={save} attention={dailyAttention(save)} onOpenDaily={() => setDailyOpen(true)} />
+      </div>
       <main className="screen">
         {tab === 'hall' && (
           <Hall
@@ -243,12 +269,15 @@ export default function App() {
           />
         )}
         {tab === 'recipes' && <Recipes save={save} setSave={setSave} />}
+        {tab === 'shop' && <Shop save={save} setSave={setSave} />}
       </main>
+      {dailyOpen && <DailyModal save={save} setSave={setSave} onClose={() => setDailyOpen(false)} />}
       {toast && <div className="toast">{toast}</div>}
       <nav className="tabs">
         <TabBtn active={tab === 'hall'} onClick={() => setTab('hall')} icon="hall" label="Зал" />
         <TabBtn active={tab === 'upgrades'} onClick={() => setTab('upgrades')} icon="upgrades" label="Прокачка" badge={canAffordUpgrade(save)} />
         <TabBtn active={tab === 'recipes'} onClick={() => setTab('recipes')} icon="recipes" label="Рецепты" />
+        <TabBtn active={tab === 'shop'} onClick={() => setTab('shop')} icon="cloud" label="Магазин" />
       </nav>
     </div>
   );

@@ -385,6 +385,46 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M19,30 L29,30" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
     </>
   ),
+  lavender: (
+    <>
+      <path d="M24,44 L24,14" {...line} stroke="#3e8e40" strokeWidth={3} />
+      <path d="M24,30 C16,28 12,22 14,18 M24,36 C32,34 36,28 34,24" {...line} stroke="#3e8e40" strokeWidth={2.5} />
+      {[[24, 8], [20, 13], [28, 13], [21, 19], [27, 19], [22, 25], [26, 25]].map(([x, y], i) => (
+        <ellipse key={i} cx={x} cy={y} rx={3.5} ry={4.5} fill="#b48ce8" stroke={INK} strokeWidth={1.8} />
+      ))}
+    </>
+  ),
+  chilimango: (
+    <>
+      <path d="M8,30 C6,20 13,13 22,15 C30,17 32,28 26,35 C21,41 10,40 8,30 Z" fill="#ffa62b" {...ink} />
+      <path d="M26,12 C36,10 44,18 42,30 C40,40 34,44 30,44 C34,36 34,24 26,18 Z" fill="#e2553a" {...ink} />
+      <path d="M26,12 C26,7 30,4 34,5" {...line} stroke="#3e8e40" strokeWidth={3} />
+    </>
+  ),
+  bag: (
+    <>
+      <path d="M16,14 L32,14 L28,8 L20,8 Z" fill="#b8693f" {...ink} />
+      <path d="M14,16 C6,24 6,42 24,42 C42,42 42,24 34,16 Z" fill="#c48a5e" {...ink} />
+      <circle cx={24} cy={30} r={7} fill="#f2c14e" {...ink} />
+    </>
+  ),
+  rocket: (
+    <>
+      <path d="M24,4 C34,12 34,28 30,34 L18,34 C14,28 14,12 24,4 Z" fill="#e9e4f5" {...ink} />
+      <circle cx={24} cy={18} r={4} fill="#5b6cff" {...ink} />
+      <path d="M18,26 L10,34 L18,34 Z M30,26 L38,34 L30,34 Z" fill="#e2553a" {...ink} />
+      <path d="M20,36 Q24,46 28,36 Z" fill="#ffd166" {...ink} />
+    </>
+  ),
+  scroll: (
+    <>
+      <rect x={10} y={8} width={28} height={32} rx={4} fill="#fff6e8" {...ink} />
+      <path d="M15,16 L33,16 M15,22 L33,22 M15,28 L27,28" {...line} strokeWidth={2.2} />
+      <circle cx={34} cy={36} r={7} fill="#7cc456" {...ink} />
+      <path d="M31,36 L33.5,38.5 L37.5,33.5" {...line} stroke="#fff" strokeWidth={2.2} />
+    </>
+  ),
+  crown: <path d="M8,36 L6,14 L16,22 L24,8 L32,22 L42,14 L40,36 Z" fill="#f2c14e" {...ink} />,
   dogjoy: (
     <>
       <path d="M12,18 C6,14 8,6 14,8 C16,4 24,6 21,12 L30,21 C36,18 44,20 40,26 C44,30 36,36 32,30 L23,21 C18,26 10,24 12,18 Z" fill="#f6e2c4" {...ink} />

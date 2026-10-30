@@ -5,7 +5,6 @@ import { Save, moveCheck, moveToNext } from '../game/state';
 import { HELPER, MAX_UPGRADE, UPGRADES, helperUpCost, locationById, upgradeCost } from '../game/data';
 import { haptic } from '../game/telegram';
 import { sfx } from '../game/sound';
-import { TopBar } from './Hall';
 
 interface Props {
   save: Save;
@@ -51,7 +50,6 @@ export default function Upgrades({ save, setSave, onMoved }: Props) {
 
   return (
     <>
-      <TopBar save={save} />
 
       {move && (
         <div className="card move-card">

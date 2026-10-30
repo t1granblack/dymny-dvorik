@@ -91,7 +91,6 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
 
   return (
     <>
-      <TopBar save={save} />
 
       <section className={`hall loc-${place.id}` + (first?.type.boss ? ' boss-mode' : '')}>
         <div className="wall">
@@ -149,13 +148,14 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
 
         {first ? (
           <button
-            className={'hero' + (first.type.boss ? ' boss' : '') + (leaving ? ' after-leave' : '')}
+            className={'hero' + (first.type.boss ? ' boss' : '') + (first.gotd ? ' gotd' : '') + (leaving ? ' after-leave' : '')}
             key={first.key}
             onClick={() => onServe(first)}
             aria-label={`Обслужить: ${first.type.name}`}
           >
             <div className="hero-bubble">
               {first.type.boss && <div className="boss-tag">Мини-босс</div>}
+              {first.gotd && <div className="boss-tag gotd-tag"><Icon name="crown" size={14} /> Гость дня</div>}
               <div className="small muted-dark">{first.type.name}</div>
               «{first.request.text}»
             </div>
@@ -233,7 +233,8 @@ export function Avatar({ type, className }: { type: GuestType; className?: strin
   return <Character look={look} portrait className={'avatar ' + (className ?? '')} />;
 }
 
-export function TopBar({ save }: { save: Save }) {
+/** Общая верхняя панель: уровень, валюта, награды и задания, звук */
+export function TopBar({ save, attention, onOpenDaily }: { save: Save; attention: boolean; onOpenDaily: () => void }) {
   const need = xpToNext(save.level);
   return (
     <header className="topbar">
@@ -243,6 +244,10 @@ export function TopBar({ save }: { save: Save }) {
       </div>
       <div className="money"><Icon name="coin" size={20} /> {save.coins}</div>
       <div className="money"><Icon name="cloud" size={20} /> {save.clouds}</div>
+      <button className="money icon-btn daily-btn" onClick={onOpenDaily} aria-label="Награды и задания">
+        <Icon name="scroll" size={20} />
+        {attention && <i className="tab-badge" />}
+      </button>
       <AudioMenu />
     </header>
   );

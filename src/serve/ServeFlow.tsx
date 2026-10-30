@@ -60,6 +60,7 @@ export default function ServeFlow({ save, guest, onDone, onCancel, onSeenHint }:
               <Person type={guest.type} />
             </div>
             {boss && <div className="boss-tag">Мини-босс</div>}
+            {guest.gotd && <div className="boss-tag gotd-tag"><Icon name="crown" size={14} /> Гость дня · монеты ×2, опыт ×2, облачка за 2+ звезды</div>}
             <h2>{guest.type.name}</h2>
             <p className="bubble big">«{guest.request.text}»</p>
             {boss && <p className="boss-intro">{boss.intro}</p>}

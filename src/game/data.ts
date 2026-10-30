@@ -21,6 +21,7 @@ export interface Flavor {
   unlock: number; // уровень игрока
   secret?: boolean;
   weird?: boolean; // бредовый вкус со «странной полки»
+  premium?: number; // цена в облачках, если вкус продаётся в магазине
   acc?: string; // винительный падеж для реплик: «кто положил сгущёнку в кальян?!»
 }
 
@@ -53,6 +54,9 @@ export const FLAVORS: Flavor[] = [
   { id: 'borscht', name: 'Борщ', acc: 'борщ', color: '#b0243a', tags: ['sour', 'sweet'], unlock: 5, weird: true },
   { id: 'noodles', name: 'Доширак', acc: 'доширак', color: '#f2c14e', tags: ['spicy', 'sweet'], unlock: 5, weird: true },
   { id: 'protein', name: 'Протеин', acc: 'протеин', color: '#d9c7a8', tags: ['dessert', 'sweet'], unlock: 3, weird: true },
+  // Премиальные вкусы — покупаются в магазине за облачка
+  { id: 'lavender', name: 'Лаванда', color: '#b48ce8', tags: ['fresh', 'dessert'], unlock: 99, premium: 25 },
+  { id: 'chilimango', name: 'Чили-манго', color: '#ff6a3d', tags: ['spicy', 'fruity', 'sweet'], unlock: 99, premium: 35 },
   // Секретный вкус: только за то, что угадал заказ собаки
   { id: 'dogjoy', name: 'Собачья радость', color: '#c9a36b', tags: ['sweet', 'dessert', 'fresh'], unlock: 99, secret: true },
 ];

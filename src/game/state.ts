@@ -5,6 +5,10 @@ import {
   flaskMult, flavorById, helperUpCost, interiorMult, mixBonus, upgradeCost, xpToNext,
   LOCATIONS, LocationId, locationById, nextLocation,
 } from './data';
+import {
+  DAILY_REWARDS, DailyState, GOTD_AFTER, GOTD_CLOUDS, GuestOfDayState, QuestsState, Reward,
+  makeGuestOfDay, makeQuests, nextStreak, progressQuests, today,
+} from './daily';
 
 export interface Save {
   v: 1;
@@ -24,6 +28,10 @@ export interface Save {
   signatures: Signature[]; // фирменные миксы игрока
   location: LocationId; // текущее заведение
   seenHints: string[]; // подсказки о механиках, которые игрок уже видел
+  daily: DailyState; // награда за вход
+  quests: QuestsState; // задания на сегодня
+  gotd: GuestOfDayState; // гость дня
+  boost: number; // сколько ещё гостей платят ×2 (ускоритель за облачка)
   updatedAt: number; // время последней записи, мс — по нему выбираем свежую копию из облака или устройства
 }
 
@@ -47,6 +55,10 @@ export const newSave = (): Save => ({
   signatures: [],
   location: 'yard',
   seenHints: [],
+  daily: { last: '', streak: 0 },
+  quests: { day: '', list: [] },
+  gotd: { day: '', done: false, startServed: 0 },
+  boost: 0,
   updatedAt: 0,
 });
 
@@ -130,6 +142,7 @@ export interface Guest {
   key: number;
   type: GuestType;
   request: GuestRequest;
+  gotd?: boolean; // гость дня
 }
 
 let guestKey = 0;
@@ -171,6 +184,11 @@ export function withNewGuest(save: Save, queue: Guest[], prevId?: string): Guest
     return [{ key: ++guestKey, type: BOSS, request: BOSS.requests[0] }, ...queue];
   }
   const last = queue.length ? queue[queue.length - 1].type.id : prevId;
+  if (gotdDue(save) && !queue.some((g) => g.gotd)) {
+    const tags = [...new Set(unlockedFlavors(save.level).filter((f) => !f.weird).flatMap((f) => f.tags))];
+    const g = makeGuestOfDay(save.level, tags);
+    return [...queue, { key: ++guestKey, type: g.type, request: { text: g.text, tags: g.tags }, gotd: true }];
+  }
   if (save.level >= DOG.unlock && Math.random() < DOG_CHANCE && !queue.some((g) => g.type.dog) && last !== DOG.id) {
     return [...queue, { key: ++guestKey, type: DOG, request: pick(DOG.requests) }];
   }
@@ -306,6 +324,9 @@ export interface ServeResult {
   weird: string | null; // бредовый вкус в миксе — гость на него отреагирует
   missingNeed: string | null; // обязательный вкус, которого не оказалось в миксе
   signature: { id: string; name: string; bonus: number } | null;
+  flavors: string[]; // какие вкусы были в миксе — для заданий
+  gotd: boolean; // это был гость дня
+  boosted: boolean; // сработал ускоритель ×2 монет
 }
 
 export function buildResult(
@@ -319,7 +340,10 @@ export function buildResult(
   const total = mix * 0.5 + pack * 0.25 + heat * 0.25;
   const stars = starsFor(total);
   const mult = interiorMult(save.upgrades.interior) * flaskMult(save.upgrades.flask) * locationById(save.location).payMult;
-  const base = Math.round(guest.type.base * (0.6 + total * 0.6) * mult);
+  // Гость дня платит вдвое; купленный за облачка ускоритель удваивает ещё раз
+  const gotd = !!guest.gotd;
+  const boosted = save.boost > 0;
+  const base = Math.round(guest.type.base * (0.6 + total * 0.6) * mult * (gotd ? 2 : 1) * (boosted ? 2 : 1));
   // Фирменный микс, который попал в заказ, приносит надбавку
   const sig = save.signatures.find((s) => s.id === signatureId);
   const sigBonus = sig && mix >= 0.85 ? Math.round(base * SIGNATURE_BONUS) : 0;
@@ -334,9 +358,12 @@ export function buildResult(
   const secretFlavor = dogGuessed && !save.secretFlavors.includes('dogjoy') ? 'dogjoy' : null;
   return {
     mix, pack, heat, total, stars, coins, tips, newRecipes, boss, bossWon, dogGuessed, secretFlavor, weird, missingNeed,
-    xp: (5 + stars * 5) * (boss ? 3 : 1),
-    clouds: bossWon ? guest.type.boss!.clouds : 0,
+    xp: (5 + stars * 5) * (boss ? 3 : gotd ? 2 : 1),
+    clouds: (bossWon ? guest.type.boss!.clouds : 0) + (gotd && stars >= 2 ? GOTD_CLOUDS : 0),
     signature: sig ? { id: sig.id, name: sig.name, bonus: sigBonus } : null,
+    flavors: parts.map((p) => p.id),
+    gotd,
+    boosted,
   };
 }
 
@@ -369,10 +396,49 @@ export function applyResult(save: Save, r: ServeResult): ApplyOutcome {
       signatures: save.signatures.map((s) =>
         s.id === r.signature?.id ? { ...s, served: s.served + 1, best: Math.max(s.best, r.stars) } : s,
       ),
+      quests: { ...save.quests, list: progressQuests(save.quests.list, r) },
+      gotd: r.gotd ? { ...save.gotd, done: true } : save.gotd,
+      boost: Math.max(0, save.boost - (r.boosted ? 1 : 0)),
     },
     levelUps,
   };
 }
+
+// ---------- Ежедневное ----------
+
+/** Новый день: свежие задания и новый гость дня. Вызывается при запуске и возвращении в игру */
+export function refreshDaily(save: Save): Save {
+  const day = today();
+  if (save.quests.day === day) return save;
+  const flavors = unlockedFlavors(save.level).filter((f) => !f.weird).map((f) => f.id);
+  return {
+    ...save,
+    quests: { day, list: makeQuests(save.level, flavors, save.signatures.length > 0) },
+    gotd: { day, done: false, startServed: save.served },
+  };
+}
+
+const grant = (save: Save, r: Reward): Save => ({ ...save, coins: save.coins + (r.coins ?? 0), clouds: save.clouds + (r.clouds ?? 0) });
+
+export function claimDaily(save: Save): { save: Save; reward: Reward | null } {
+  const streak = nextStreak(save.daily);
+  if (streak === null) return { save, reward: null };
+  const reward = DAILY_REWARDS[streak - 1];
+  return { save: { ...grant(save, reward), daily: { last: today(), streak } }, reward };
+}
+
+export function claimQuest(save: Save, id: string): Save {
+  const q = save.quests.list.find((x) => x.id === id);
+  if (!q || q.claimed || q.progress < q.target) return save;
+  return { ...grant(save, q.reward), quests: { ...save.quests, list: save.quests.list.map((x) => (x.id === id ? { ...x, claimed: true } : x)) } };
+}
+
+/** Есть что забрать: награда за вход или выполненное задание */
+export const dailyAttention = (save: Save) =>
+  nextStreak(save.daily) !== null || save.quests.list.some((q) => !q.claimed && q.progress >= q.target);
+
+export const gotdDue = (save: Save) =>
+  save.level >= 2 && save.gotd.day === today() && !save.gotd.done && save.served - save.gotd.startServed >= GOTD_AFTER;
 
 /** Хватает ли монет хотя бы на одно улучшение или помощника */
 export const canAffordUpgrade = (save: Save) =>

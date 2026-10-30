@@ -60,6 +60,8 @@ export default function ResultStep({ guest, result: r, parts, bossLine, onNext }
       <div className="reward">
         +{r.coins} <Icon name="coin" size={18} />{r.tips > 0 && <> · чаевые +{r.tips} <Icon name="coin" size={18} /></>} · +{r.xp} опыта{r.clouds > 0 && <> · +{r.clouds} <Icon name="cloud" size={18} /></>}
       </div>
+      {r.gotd && <div className="new-recipe"><Icon name="crown" size={18} /> Гость дня: монеты и опыт ×2{r.stars >= 2 ? ' и облачка' : ''}</div>}
+      {r.boosted && <div className="new-recipe"><Icon name="rocket" size={18} /> Ускоритель: монеты ×2</div>}
       {r.signature && (
         <div className="new-recipe">
           {r.signature.bonus > 0

@@ -4,7 +4,7 @@ import { Icon } from '../art/Icon';
 import { MAX_SIGNATURES, Save, Signature, encodeMix, shares, signatureText, signatureUsable } from '../game/state';
 import { BOSS, COMBOS, DOG, FLAVORS, GUESTS, TAG_LABEL, flavorById, mixSlots } from '../game/data';
 import { GAME_URL, shareText, tgUser } from '../game/telegram';
-import { Avatar, TopBar } from './Hall';
+import { Avatar } from './Hall';
 import SignatureEditor from './SignatureEditor';
 
 /** Почему фирменный пока нельзя подать: закрытый вкус или мало слотов в чаше */
@@ -30,7 +30,6 @@ export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Sa
 
   return (
     <>
-      <TopBar save={save} />
 
       <h2>Фирменные миксы</h2>
       {save.signatures.map((sig) => (
@@ -83,7 +82,7 @@ export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Sa
           return (
             <div key={f.id} className={'flavor-tile' + (open ? '' : ' locked') + (f.weird ? ' weird' : '')} style={{ '--c': f.color } as CSSProperties}>
               <Icon name={open ? f.id : 'lock'} size={38} />
-              <div className="strong small">{open ? f.name : f.secret ? 'Секрет' : `Ур. ${f.unlock}`}</div>
+              <div className="strong small">{open ? f.name : f.premium ? 'В магазине' : f.secret ? 'Секрет' : `Ур. ${f.unlock}`}</div>
               {open && <div className="tags">{f.tags.map((t) => <span key={t}>{TAG_LABEL[t]}</span>)}</div>}
             </div>
           );
