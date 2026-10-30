@@ -3,6 +3,7 @@
 import {
   BOSS, BOSS_EVERY, COMBOS, DOG, DOG_CHANCE, DOG_GUESS, Combo, FLAVORS, GUESTS, GuestRequest, GuestType, HELPER, MAX_UPGRADE, Tag, UPGRADES, UpgradeId,
   flaskMult, flavorById, helperUpCost, interiorMult, mixBonus, upgradeCost, xpToNext,
+  LOCATIONS, LocationId, locationById, nextLocation,
 } from './data';
 
 export interface Save {
@@ -21,6 +22,8 @@ export interface Save {
   bossWins: number;
   secretFlavors: string[]; // открытые секретные вкусы
   signatures: Signature[]; // фирменные миксы игрока
+  location: LocationId; // текущее заведение
+  seenHints: string[]; // подсказки о механиках, которые игрок уже видел
   updatedAt: number; // время последней записи, мс — по нему выбираем свежую копию из облака или устройства
 }
 
@@ -42,6 +45,8 @@ export const newSave = (): Save => ({
   bossWins: 0,
   secretFlavors: [],
   signatures: [],
+  location: 'yard',
+  seenHints: [],
   updatedAt: 0,
 });
 
@@ -49,10 +54,54 @@ export const newSave = (): Save => ({
 export function parseSave(raw: string | null): Save | null {
   if (!raw) return null;
   try {
-    return { ...newSave(), ...JSON.parse(raw) };
+    return sanitize({ ...newSave(), ...JSON.parse(raw) });
   } catch {
     return null;
   }
+}
+
+/**
+ * Защита старых сохранений: если вкус, рецепт или заведение убрали из игры,
+ * ссылки на них тихо отбрасываются, а не роняют загрузку
+ */
+function sanitize(s: Save): Save {
+  const flavorOk = (id: string) => FLAVORS.some((f) => f.id === id);
+  return {
+    ...s,
+    upgrades: { ...newSave().upgrades, ...s.upgrades },
+    recipes: (s.recipes ?? []).filter((id) => COMBOS.some((c) => c.id === id)),
+    secretFlavors: (s.secretFlavors ?? []).filter(flavorOk),
+    signatures: (s.signatures ?? [])
+      .map((sig) => ({ ...sig, parts: (sig.parts ?? []).filter((p) => flavorOk(p.id)) }))
+      .filter((sig) => sig.parts.length > 0),
+    location: LOCATIONS.some((l) => l.id === s.location) ? s.location : 'yard',
+    seenHints: s.seenHints ?? [],
+  };
+}
+
+// ---------- Переезд в новое заведение ----------
+
+export function moveCheck(save: Save) {
+  const next = nextLocation(save.location);
+  if (!next?.move) return null;
+  return {
+    next,
+    level: save.level >= next.move.level,
+    interior: save.upgrades.interior >= MAX_UPGRADE,
+    coins: save.coins >= next.move.cost,
+  };
+}
+
+/** Переезд: монеты списываются, интерьер нового места начинается с нуля, остальное остаётся */
+export function moveToNext(save: Save): Save {
+  const check = moveCheck(save);
+  if (!check || !check.level || !check.interior || !check.coins) return save;
+  return {
+    ...save,
+    location: check.next.id,
+    coins: save.coins - check.next.move!.cost,
+    upgrades: { ...save.upgrades, interior: 0 },
+  };
 }
 
 export function loadSave(): Save {
@@ -269,7 +318,7 @@ export function buildResult(
   if (missingNeed) mix *= 0.4;
   const total = mix * 0.5 + pack * 0.25 + heat * 0.25;
   const stars = starsFor(total);
-  const mult = interiorMult(save.upgrades.interior) * flaskMult(save.upgrades.flask);
+  const mult = interiorMult(save.upgrades.interior) * flaskMult(save.upgrades.flask) * locationById(save.location).payMult;
   const base = Math.round(guest.type.base * (0.6 + total * 0.6) * mult);
   // Фирменный микс, который попал в заказ, приносит надбавку
   const sig = save.signatures.find((s) => s.id === signatureId);
@@ -332,7 +381,8 @@ export const canAffordUpgrade = (save: Save) =>
 
 // ---------- Офлайн-доход ----------
 
-export const helperRate = (save: Save) => (save.helper ? HELPER.ratePerHour * save.helper * interiorMult(save.upgrades.interior) : 0);
+export const helperRate = (save: Save) =>
+  save.helper ? HELPER.ratePerHour * save.helper * interiorMult(save.upgrades.interior) * locationById(save.location).payMult : 0;
 
 export function pendingIncome(save: Save, now = Date.now()) {
   if (!save.helper) return 0;

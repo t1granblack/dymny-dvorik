@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Guest, Save, canAffordUpgrade, pendingIncome, helperRate } from '../game/state';
-import { GuestType, HELPER, xpToNext } from '../game/data';
+import { GuestType, HELPER, LocationId, locationById, xpToNext } from '../game/data';
 import { addToHomeScreen, haptic, homeScreenStatus, tgUser } from '../game/telegram';
 import { audioPrefs, setMusic, setSfx, sfx } from '../game/sound';
 import { Character, Cheremsha, Dog } from '../art/Character';
@@ -18,12 +18,31 @@ interface Props {
 }
 
 /**
- * Как выглядит зал на каждом уровне интерьера (названия уровней — в UPGRADES):
- * 0 — табуретки, 1 — лавочки, 2 — пуфы и ковёр, 3 — гирлянды, 4 — диваны и растение, 5 — неон и музыка
+ * Как выглядит зал на каждом уровне интерьера (названия уровней — в LOCATIONS).
+ * Дворик: 0 — табуретки, 1 — лавочки, 2 — пуфы и ковёр, 3 — гирлянды, 4 — диваны и растение, 5 — неон и музыка.
+ * Лаунж: 0 — кожаные кресла и неоновая вывеска, 1 — LED-подсветка, 2 — бар с подсветкой,
+ * 3 — бархатные диваны, 4 — VIP-зона, 5 — диджей и световое шоу.
  */
-function interiorDecor(lvl: number) {
+function interiorDecor(location: LocationId, lvl: number) {
+  const none = { window: false, art: false, led: false, bar: false, vip: false, dj: false, rug: false, garland: false, plant: false, music: false };
+  if (location === 'lounge') {
+    return {
+      ...none,
+      seat: lvl >= 3 ? 'velvet' : 'armchair',
+      neon: true,
+      art: lvl < 2,
+      led: lvl >= 1,
+      bar: lvl >= 2,
+      plant: lvl >= 3,
+      vip: lvl >= 4,
+      dj: lvl >= 5,
+      music: lvl >= 5,
+    };
+  }
   return {
+    ...none,
     seat: lvl >= 4 ? 'sofa' : lvl >= 2 ? 'pouf' : lvl >= 1 ? 'bench' : 'stool',
+    window: true,
     rug: lvl >= 2,
     garland: lvl >= 3,
     plant: lvl >= 4,
@@ -58,7 +77,8 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
   }, []);
 
   const pending = pendingIncome(save);
-  const decor = interiorDecor(save.upgrades.interior);
+  const decor = interiorDecor(save.location, save.upgrades.interior);
+  const place = locationById(save.location);
   const owner = tgUser(); // портрет хозяина кальянной — аватарка игрока из Telegram
   const [first, ...rest] = queue;
 
@@ -73,12 +93,22 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
     <>
       <TopBar save={save} />
 
-      <section className={'hall' + (first?.type.boss ? ' boss-mode' : '')}>
+      <section className={`hall loc-${place.id}` + (first?.type.boss ? ' boss-mode' : '')}>
         <div className="wall">
           {decor.garland && <div className="garland" />}
-          <div className="window"><Icon name="moon" size={22} /></div>
-          <div className={'sign' + (decor.neon ? ' neon' : '')}>Дымный дворик</div>
+          {decor.led && <div className="led-strip" />}
+          {decor.window && <div className="window"><Icon name="moon" size={22} /></div>}
+          {decor.art && <div className="neon-art" />}
+          {decor.bar && (
+            <div className="backbar">
+              {['#3ecf8e', '#ff5a6e', '#ffd23f', '#8e4fbf', '#5b6cff', '#ffa62b'].map((c) => (
+                <i key={c} style={{ '--c': c } as CSSProperties} />
+              ))}
+            </div>
+          )}
+          <div className={'sign' + (decor.neon ? ' neon' : '')}>{place.sign}</div>
           <div className="door" />
+          {decor.vip && <div className="vip-rope" />}
           {owner?.first_name && (
             <div className="owner-frame" title={`Хозяин: ${owner.first_name}`}>
               {owner.photo_url ? <img src={owner.photo_url} alt="" /> : <span>{owner.first_name[0]}</span>}
@@ -94,6 +124,11 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
         </div>
         <div className="floor" />
         {decor.rug && <div className="rug" />}
+        {decor.dj && (
+          <div className="dj-lights" aria-hidden="true">
+            <i /><i /><i />
+          </div>
+        )}
 
         {rest.slice(0, SPOTS.length).map((g, i) => (
           <div key={g.key} className="seated" style={{ left: `${SPOTS[i].x}%`, bottom: `${SPOTS[i].y}%`, zIndex: 10 - Math.round(SPOTS[i].y / 10) }}>

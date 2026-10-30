@@ -214,6 +214,7 @@ export default function App() {
         guest={serving}
         onDone={(r) => finishGuest(serving, r)}
         onCancel={() => setServing(null)}
+        onSeenHint={(id) => setSave((s) => (s.seenHints.includes(id) ? s : { ...s, seenHints: [...s.seenHints, id] }))}
       />
     );
   }
@@ -231,7 +232,16 @@ export default function App() {
             leaving={leaving}
           />
         )}
-        {tab === 'upgrades' && <Upgrades save={save} setSave={setSave} />}
+        {tab === 'upgrades' && (
+          <Upgrades
+            save={save}
+            setSave={setSave}
+            onMoved={(place) => {
+              setTab('hall');
+              setToast(`Добро пожаловать: ${place} открыт!`);
+            }}
+          />
+        )}
         {tab === 'recipes' && <Recipes save={save} setSave={setSave} />}
       </main>
       {toast && <div className="toast">{toast}</div>}

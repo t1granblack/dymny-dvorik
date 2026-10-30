@@ -338,6 +338,37 @@ export const BOSS_EVERY = 8; // гостей между визитами
  */
 export const difficulty = (level: number, boss = false) => Math.min(1, (level - 1) / 12) + (boss ? 0.35 : 0);
 
+// ---------- Заведения ----------
+// Игрок копит на переезд: старое заведение заменяется новым, интерьер начинается заново,
+// а оборудование, вкусы, рецепты и фирменные миксы остаются.
+
+export type LocationId = 'yard' | 'lounge';
+
+export interface Location {
+  id: LocationId;
+  name: string;
+  sign: string; // надпись на вывеске
+  payMult: number; // во сколько раз гости платят больше
+  difficultyBonus: number; // насколько капризнее заказы
+  interiorLevels: string[]; // названия уровней интерьера 1..5 в этом заведении
+  move?: { cost: number; level: number }; // условия переезда сюда (интерьер прошлого — на максимуме)
+}
+
+export const LOCATIONS: Location[] = [
+  {
+    id: 'yard', name: 'Дымный дворик', sign: 'Дымный дворик', payMult: 1, difficultyBonus: 0,
+    interiorLevels: ['Лавочка', 'Пуфы', 'Гирлянды', 'Диваны', 'Вывеска и музыка'],
+  },
+  {
+    id: 'lounge', name: 'Лаунж', sign: 'Dvorik Lounge', payMult: 1.6, difficultyBonus: 0.1,
+    interiorLevels: ['Неоновая подсветка', 'Бар с подсветкой', 'Бархатные диваны', 'VIP-зона', 'Диджей-пульт'],
+    move: { cost: 2500, level: 8 },
+  },
+];
+
+export const locationById = (id: LocationId) => LOCATIONS.find((l) => l.id === id) ?? LOCATIONS[0];
+export const nextLocation = (id: LocationId) => LOCATIONS[LOCATIONS.findIndex((l) => l.id === id) + 1];
+
 export type UpgradeId = 'storage' | 'bowl' | 'kalaud' | 'flask' | 'interior';
 
 export interface Upgrade {
@@ -375,7 +406,7 @@ export const UPGRADES: Upgrade[] = [
   {
     id: 'interior', icon: 'sofa', name: 'Интерьер', baseCost: 90,
     levels: ['Лавочка', 'Пуфы', 'Гирлянды', 'Диваны', 'Вывеска и музыка'],
-    effect: (l) => `+${l * 10}% к чеку, ${seats(l)} мест в очереди`,
+    effect: (l) => `+${l * 10}% к чеку, ${seats(l)} ${seats(l) < 5 ? 'места' : 'мест'} в очереди`,
   },
 ];
 

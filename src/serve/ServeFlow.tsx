@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '../art/Icon';
 import { Guest, MixPart, Save, ServeResult, buildResult, scoreMix } from '../game/state';
-import { Combo, difficulty, flavorById } from '../game/data';
+import { Combo, difficulty, flavorById, locationById } from '../game/data';
 import { Avatar, Person } from '../screens/Hall';
 import MixStep from './MixStep';
 import PackStep from './PackStep';
@@ -17,9 +17,10 @@ interface Props {
   guest: Guest;
   onDone: (r: ServeResult) => void;
   onCancel: () => void;
+  onSeenHint: (id: string) => void;
 }
 
-export default function ServeFlow({ save, guest, onDone, onCancel }: Props) {
+export default function ServeFlow({ save, guest, onDone, onCancel, onSeenHint }: Props) {
   const [step, setStep] = useState<Step>('order');
   const [mix, setMix] = useState<{ parts: MixPart[]; score: number; combos: Combo[]; signatureId?: string } | null>(null);
   const [pack, setPack] = useState(0);
@@ -27,8 +28,11 @@ export default function ServeFlow({ save, guest, onDone, onCancel }: Props) {
   // Первые 3 гостя — обучение с подсказками на каждом шаге
   const tutorial = save.served < 3;
   const boss = guest.type.boss;
-  const d = difficulty(save.level, !!boss);
+  const d = difficulty(save.level, !!boss) + locationById(save.location).difficultyBonus;
   const dogHint = guest.type.dog ? guest.request.hint : undefined;
+  // Механики, появившиеся после обучения, объясняем каждому игроку один раз
+  const packHint = tutorial || !save.seenHints.includes('pack-even');
+  const heatHint = tutorial || !save.seenHints.includes('heat-ash');
 
   return (
     <div className={'app serve' + (boss ? ' boss-serve' : '')}>
@@ -89,8 +93,9 @@ export default function ServeFlow({ save, guest, onDone, onCancel }: Props) {
             bowlLvl={save.upgrades.bowl}
             difficulty={d}
             colors={mix.parts.map((p) => flavorById(p.id).color)}
-            tutorial={tutorial}
+            tutorial={packHint}
             onDone={(s) => {
+              if (packHint) onSeenHint('pack-even');
               setPack(s);
               setStep('heat');
             }}
@@ -102,8 +107,9 @@ export default function ServeFlow({ save, guest, onDone, onCancel }: Props) {
             kalaudLvl={save.upgrades.kalaud}
             difficulty={d}
             boss={!!boss}
-            tutorial={tutorial}
+            tutorial={heatHint}
             onDone={(heat) => {
+              if (heatHint) onSeenHint('heat-ash');
               setResult(buildResult(save, guest, mix.score, pack, heat, mix.combos, mix.parts, mix.signatureId));
               setStep('result');
             }}
