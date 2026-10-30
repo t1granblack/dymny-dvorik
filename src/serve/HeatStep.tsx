@@ -20,30 +20,40 @@ const LID_COOLING = 12;
 export default function HeatStep({ kalaudLvl, difficulty: d, boss, tutorial, onDone }: Props) {
   // Всё, что усложняется с уровнем: ширина зоны, сила ветра, прогорание углей
   const DURATION = boss ? 20 : 15;
-  const LO = 62 - (20 - 6 * d) / 2;
-  const HI = 62 + (20 - 6 * d) / 2;
-  const BURN_RATE = 0.016 * Math.min(1, d); // к концу заметно слабеют только на поздних уровнях
+  const LO = 62 - (16 - 5 * d) / 2;
+  const HI = 62 + (16 - 5 * d) / 2;
+  const BURN_RATE = 0.006 + 0.012 * Math.min(1, d); // угли прогорают всегда, на поздних уровнях быстрее
+  const ASH_RATE = 0.05 + 0.03 * Math.min(1, d); // пепел нарастает и глушит жар, пока его не сдуешь
   const [started, setStarted] = useState(false);
   const [coals, setCoals] = useState(3);
   const [lidOpen, setLidOpen] = useState(false);
-  const [view, setView] = useState({ temp: 25, t: 0, inZone: 0 });
+  const [view, setView] = useState({ temp: 25, t: 0, inZone: 0, ash: 0 });
   // Симуляция живёт в ref, чтобы интервал не пересоздавался на каждый клик
-  const sim = useRef({ temp: 25, wind: 0, t: 0, inZone: 0, coals: 3, lidOpen: false, wasIn: false });
+  const sim = useRef({ temp: 25, wind: 0, t: 0, inZone: 0, coals: 3, lidOpen: false, wasIn: false, ash: 0 });
   sim.current.coals = coals;
   sim.current.lidOpen = lidOpen;
 
+  const blowAsh = () => {
+    haptic.tap();
+    sfx.blow();
+    // Сдул пепел — угли вспыхивают: жар коротко подскакивает
+    sim.current.ash = 0;
+    sim.current.temp += 7;
+  };
+
   useEffect(() => {
     if (!started) return;
-    const amp = windFactor(kalaudLvl) * (0.55 + 0.45 * d);
-    const gustChance = 0.008 + 0.017 * d;
+    const amp = windFactor(kalaudLvl) * (0.75 + 0.4 * d);
+    const gustChance = 0.015 + 0.02 * d;
     const dt = 0.1;
     const id = setInterval(() => {
       const s = sim.current;
       // Ветер — случайное блуждание, иногда резкий порыв
-      s.wind += (Math.random() - 0.5) * 6.5 * amp;
-      if (Math.random() < gustChance) s.wind += (Math.random() < 0.5 ? -1 : 1) * 14 * amp;
-      s.wind = Math.max(-25 * amp, Math.min(25 * amp, s.wind));
-      const burn = 1 - BURN_RATE * s.t;
+      s.wind += (Math.random() - 0.5) * 7 * amp;
+      if (Math.random() < gustChance) s.wind += (Math.random() < 0.5 ? -1 : 1) * 15 * amp;
+      s.wind = Math.max(-26 * amp, Math.min(26 * amp, s.wind));
+      s.ash = Math.min(1, s.ash + ASH_RATE * dt);
+      const burn = (1 - BURN_RATE * s.t) * (1 - 0.3 * s.ash);
       const target = s.coals * HEAT_PER_COAL * burn - (s.lidOpen ? LID_COOLING : 0) + s.wind;
       s.temp += (target - s.temp) * 0.9 * dt;
       s.t += dt;
@@ -56,7 +66,7 @@ export default function HeatStep({ kalaudLvl, difficulty: d, boss, tutorial, onD
       // Колба булькает, когда чаша прогрелась: чем горячее, тем чаще
       if (s.temp > 45 && Math.random() < (s.temp - 40) / 300) sfx.bubble();
       s.wasIn = inZone;
-      setView({ temp: s.temp, t: s.t, inZone: s.inZone });
+      setView({ temp: s.temp, t: s.t, inZone: s.inZone, ash: s.ash });
       if (s.t >= DURATION) {
         clearInterval(id);
         onDone(clamp01(s.inZone / (DURATION - GRACE)));
@@ -74,13 +84,13 @@ export default function HeatStep({ kalaudLvl, difficulty: d, boss, tutorial, onD
     <div className="heat">
       {tutorial && (
         <p className="hint">
-          Держи жар в зелёной зоне {DURATION} секунд. Угли добавляют жар, заслонка калауда немного остужает. Ветер всё время сбивает температуру — подстраивайся.
+          Держи жар в зелёной зоне {DURATION} секунд. Угли добавляют жар, заслонка остужает, ветер сбивает температуру. Угли покрываются пеплом и слабеют — сдувай его, но осторожно: после этого жар подскакивает.
         </p>
       )}
       <div className="kalaud" style={{ '--glow': glow } as CSSProperties}>
         <div className="coals">
           {Array.from({ length: coals }, (_, i) => (
-            <span key={i} className="coal" style={{ opacity: 1 - BURN_RATE * view.t * 1.5 }} />
+            <span key={i} className="coal" style={{ opacity: 1 - BURN_RATE * view.t * 1.5, '--ash': view.ash } as CSSProperties} />
           ))}
         </div>
         <div className={'lid' + (lidOpen ? ' open' : '')}>{lidOpen ? 'заслонка открыта' : 'заслонка закрыта'}</div>
@@ -100,8 +110,9 @@ export default function HeatStep({ kalaudLvl, difficulty: d, boss, tutorial, onD
         ) : (
           <>
             <button className="btn" disabled={coals <= 2} data-sound="own" onClick={() => { haptic.tap(); sfx.coalOff(); setCoals(coals - 1); }}>− уголь</button>
-            <button className="btn" data-sound="own" onClick={() => { haptic.tap(); sfx.lid(); setLidOpen(!lidOpen); }}>{lidOpen ? 'Закрыть' : 'Открыть'}</button>
             <button className="btn" disabled={coals >= 4} data-sound="own" onClick={() => { haptic.tap(); sfx.coalOn(); setCoals(coals + 1); }}>+ уголь</button>
+            <button className="btn" data-sound="own" onClick={() => { haptic.tap(); sfx.lid(); setLidOpen(!lidOpen); }}>{lidOpen ? 'Закрыть' : 'Открыть'}</button>
+            <button className={'btn' + (view.ash > 0.6 ? ' urgent' : '')} data-sound="own" onClick={blowAsh}>Сдуть пепел</button>
           </>
         )}
       </div>

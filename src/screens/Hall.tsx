@@ -4,7 +4,7 @@ import { Guest, Save, canAffordUpgrade, pendingIncome, helperRate } from '../gam
 import { GuestType, HELPER, xpToNext } from '../game/data';
 import { haptic } from '../game/telegram';
 import { audioPrefs, setMusic, setSfx, sfx } from '../game/sound';
-import { Character, Dog } from '../art/Character';
+import { Character, Cheremsha, Dog } from '../art/Character';
 import type { Mood } from '../art/Character';
 import { Icon } from '../art/Icon';
 
@@ -15,6 +15,21 @@ interface Props {
   onServe: (g: Guest) => void;
   onOpenUpgrades: () => void;
   leaving: Leaving | null;
+}
+
+/**
+ * Как выглядит зал на каждом уровне интерьера (названия уровней — в UPGRADES):
+ * 0 — табуретки, 1 — лавочки, 2 — пуфы и ковёр, 3 — гирлянды, 4 — диваны и растение, 5 — неон и музыка
+ */
+function interiorDecor(lvl: number) {
+  return {
+    seat: lvl >= 4 ? 'sofa' : lvl >= 2 ? 'pouf' : lvl >= 1 ? 'bench' : 'stool',
+    rug: lvl >= 2,
+    garland: lvl >= 3,
+    plant: lvl >= 4,
+    neon: lvl >= 5,
+    music: lvl >= 5,
+  };
 }
 
 /** Гость, которого только что обслужили: уходит к двери с эмоцией */
@@ -43,6 +58,7 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
   }, []);
 
   const pending = pendingIncome(save);
+  const decor = interiorDecor(save.upgrades.interior);
   const [first, ...rest] = queue;
 
   const collect = () => {
@@ -58,15 +74,24 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
 
       <section className={'hall' + (first?.type.boss ? ' boss-mode' : '')}>
         <div className="wall">
-          <div className="garland" />
+          {decor.garland && <div className="garland" />}
           <div className="window"><Icon name="moon" size={22} /></div>
-          <div className="sign">Дымный дворик</div>
+          <div className={'sign' + (decor.neon ? ' neon' : '')}>Дымный дворик</div>
           <div className="door" />
+          {decor.plant && <div className="plant" />}
+          {decor.music && (
+            <div className="speaker">
+              <span className="note n1"><Icon name="note" size={16} /></span>
+              <span className="note n2"><Icon name="note" size={13} /></span>
+            </div>
+          )}
         </div>
         <div className="floor" />
+        {decor.rug && <div className="rug" />}
 
         {rest.slice(0, SPOTS.length).map((g, i) => (
           <div key={g.key} className="seated" style={{ left: `${SPOTS[i].x}%`, bottom: `${SPOTS[i].y}%`, zIndex: 10 - Math.round(SPOTS[i].y / 10) }}>
+            <div className={'seat seat-' + decor.seat} />
             <Person type={g.type} />
             <div className="table" />
           </div>
@@ -150,6 +175,7 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
 /** Нарисованный гость; компания — несколько фигурок рядом. mood подменяет обычное выражение лица */
 export function Person({ type, mood }: { type: GuestType; mood?: Mood }) {
   if (type.dog) return <div className="person dog"><Dog className="char" mood={mood} /></div>;
+  if (type.creature === 'cheremsha') return <div className="person"><Cheremsha className="char" mood={mood} /></div>;
   const looks = Array.isArray(type.look) ? type.look : [type.look];
   return (
     <div className={'person' + (looks.length > 1 ? ' duo' : '')}>
@@ -161,6 +187,7 @@ export function Person({ type, mood }: { type: GuestType; mood?: Mood }) {
 /** Маленькая аватарка гостя: голова и плечи */
 export function Avatar({ type, className }: { type: GuestType; className?: string }) {
   if (type.dog) return <Dog portrait className={'avatar ' + (className ?? '')} />;
+  if (type.creature === 'cheremsha') return <Cheremsha portrait className={'avatar ' + (className ?? '')} />;
   const look = Array.isArray(type.look) ? type.look[0] : type.look;
   return <Character look={look} portrait className={'avatar ' + (className ?? '')} />;
 }

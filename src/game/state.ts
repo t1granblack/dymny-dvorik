@@ -88,7 +88,7 @@ let guestKey = 0;
 export function randomGuest(level: number, prevId?: string): Guest {
   const open = GUESTS.filter((g) => g.unlock <= level);
   const pool = open.filter((g) => g.id !== prevId);
-  const type = pick(pool.length ? pool : open);
+  const type = pickWeighted(pool.length ? pool : open, (g) => g.weight ?? 1);
   // Запрос должен быть выполним из открытых вкусов
   const have = new Set(unlockedFlavors(level).flatMap((f) => f.tags));
   const ok = type.requests.filter((r) => r.tags.every((t) => have.has(t)));
@@ -100,6 +100,16 @@ export const bossDue = (save: Save) => save.level >= BOSS.unlock && save.served 
 
 function pick<T>(list: T[]) {
   return list[Math.floor(Math.random() * list.length)];
+}
+
+/** Случайный элемент с учётом веса: редкие гости заходят реже */
+function pickWeighted<T>(list: T[], weight: (item: T) => number) {
+  let r = Math.random() * list.reduce((s, x) => s + weight(x), 0);
+  for (const x of list) {
+    r -= weight(x);
+    if (r <= 0) return x;
+  }
+  return list[list.length - 1];
 }
 
 /**
@@ -201,6 +211,7 @@ export interface ServeResult {
   dogGuessed: boolean | null; // null — гость не собака
   secretFlavor: string | null; // открытый сейчас секретный вкус
   weird: string | null; // бредовый вкус в миксе — гость на него отреагирует
+  missingNeed: string | null; // обязательный вкус, которого не оказалось в миксе
   signature: { id: string; name: string; bonus: number } | null;
 }
 
@@ -208,6 +219,10 @@ export function buildResult(
   save: Save, guest: Guest, mix: number, pack: number, heat: number, combos: Combo[],
   parts: MixPart[] = [], signatureId?: string,
 ): ServeResult {
+  // Гость сказал «обязательно с …», а этого вкуса нет — микс засчитывается лишь частично
+  const need = guest.request.needs;
+  const missingNeed = need && !parts.some((p) => p.id === need) ? need : null;
+  if (missingNeed) mix *= 0.4;
   const total = mix * 0.5 + pack * 0.25 + heat * 0.25;
   const stars = starsFor(total);
   const mult = interiorMult(save.upgrades.interior) * flaskMult(save.upgrades.flask);
@@ -225,7 +240,7 @@ export function buildResult(
   const dogGuessed = guest.type.dog ? mix >= DOG_GUESS : null;
   const secretFlavor = dogGuessed && !save.secretFlavors.includes('dogjoy') ? 'dogjoy' : null;
   return {
-    mix, pack, heat, total, stars, coins, tips, newRecipes, boss, bossWon, dogGuessed, secretFlavor, weird,
+    mix, pack, heat, total, stars, coins, tips, newRecipes, boss, bossWon, dogGuessed, secretFlavor, weird, missingNeed,
     xp: (5 + stars * 5) * (boss ? 3 : 1),
     clouds: bossWon ? guest.type.boss!.clouds : 0,
     signature: sig ? { id: sig.id, name: sig.name, bonus: sigBonus } : null,

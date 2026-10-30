@@ -16,6 +16,10 @@ const OWN: Record<string, Partial<Record<Verdict, string>>> = {
   student: { love: 'Лучше, чем лекция по матану!', sad: 'Как пересдача, честно' },
   manager: { love: 'Закрываю квартал с плюсом!', sad: 'Это надо обсудить на созвоне' },
   groom: { love: 'Это лучше, чем свадьба! Только ей не говори', sad: 'Ладно, пойду к невесте…' },
+  billionaire: { love: 'Зашифрую этот рецепт. Вернусь', ok: 'Неплохо. Пойду отожмусь', sad: 'Удаляю аккаунт. Шучу. Но нет' },
+  cheremsha: { love: 'Тихо, не спеша… кайф', ok: 'Тихо, спокойно… сойдёт', sad: 'Без суеты, но мимо' },
+  altgirl: { love: 'Окей, это не мейнстрим. Респект', ok: 'Сойдёт. Наверное', sad: 'Слишком попсово' },
+  tiktoker: { love: 'Залетит в реки сто процентов!', ok: 'Норм, для сторис пойдёт', sad: 'Это даже в черновики не пойдёт' },
   vibecoder: { love: 'Заработало с первого раза! Коммичу', ok: 'Норм, потом отрефакторю', sad: 'Галлюцинирует… перегенерируй' },
   dog: { love: 'Гав-гав-гав!!!', sad: 'Ууу…' },
   stranger: { love: 'Хм. Достойно.', ok: 'Хм. Достойно.', sad: 'Не то.' },
@@ -42,6 +46,7 @@ export function reactionMood(type: GuestType, r: ServeResult): Mood {
 
 export function reactionLine(type: GuestType, r: ServeResult): string {
   const v = verdict(type, r);
+  if (r.missingNeed) return `А ${flavorById(r.missingNeed).acc ?? ''} где?`;
   // Бредовый вкус в миксе — главная тема для обсуждения (кроме пса и незнакомца)
   if (r.weird && !type.dog && !type.boss) {
     const f = flavorById(r.weird);

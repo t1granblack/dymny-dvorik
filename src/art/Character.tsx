@@ -24,6 +24,9 @@ export interface Look {
   chain?: string; // цвет цепи на шее
   faceTattoo?: boolean;
   pin?: boolean; // значок на лацкане
+  choker?: boolean;
+  streak?: string; // цветная прядь в чёлке
+  item?: 'shaker'; // что держит в руке
   lipstick?: string;
   blush?: boolean;
   mood?: Mood;
@@ -57,6 +60,18 @@ export function Character({ look, portrait, className }: Props) {
         </g>
       )}
       {look.pin && <circle cx={44} cy={110} r={3.5} fill="#f2c14e" stroke={INK} strokeWidth={2} />}
+      {look.choker && <rect x={50} y={82} width={20} height={6} rx={2} fill={INK} />}
+      {look.item === 'shaker' && (
+        <g>
+          {/* шейкер с протеином в поднятой руке */}
+          <path d="M76,90 L96,90 L94,128 L78,128 Z" fill="#f4f1ea" {...ink} />
+          <rect x={74} y={82} width={24} height={10} rx={3} fill="#2a2a2a" {...ink} />
+          <rect x={83} y={76} width={6} height={7} rx={2} fill="#2a2a2a" {...ink} />
+          <rect x={78} y={104} width={16} height={12} fill="#3a7fc4" />
+          <path d="M80,110 L92,110" stroke="#fff" strokeWidth={2} strokeLinecap="round" />
+          <ellipse cx={86} cy={124} rx={11} ry={8} fill={look.skin} {...ink} />
+        </g>
+      )}
       {/* уши */}
       <ellipse cx={28} cy={54} rx={7} ry={8} fill={look.skin} {...ink} />
       <ellipse cx={92} cy={54} rx={7} ry={8} fill={look.skin} {...ink} />
@@ -65,6 +80,7 @@ export function Character({ look, portrait, className }: Props) {
       <ellipse cx={60} cy={50} rx={32} ry={34} fill={look.skin} {...ink} />
       <Beard look={look} />
       <FrontHair look={look} />
+      {look.streak && <path d="M44,24 C40,32 36,40 33,48" fill="none" stroke={look.streak} strokeWidth={6} strokeLinecap="round" />}
       <Face look={look} />
       <Glasses look={look} />
       <Hat look={look} />
@@ -76,6 +92,64 @@ export function Character({ look, portrait, className }: Props) {
           <rect x={90} y={44} width={13} height={22} rx={5} fill={look.headphones} {...ink} />
         </g>
       )}
+    </svg>
+  );
+}
+
+/** Черемша — мем 2026: лев с заячьими ушами в рабочей спецовке, «тихо, не спеша» */
+export function Cheremsha({ portrait, className, mood }: { portrait?: boolean; className?: string; mood?: Mood }) {
+  const fur = '#e3a54a';
+  const mane = '#a8572a';
+  const viewBox = portrait ? '6 -8 108 108' : '0 -14 120 176';
+  const sad = mood === 'sad';
+  const lids = mood === 'love' ? 0 : sad ? 0.55 : 0.45; // полуприкрытые глаза — спокойствие без суеты
+  return (
+    <svg viewBox={viewBox} className={className} aria-hidden="true">
+      {/* длинные заячьи уши */}
+      <path d="M40,22 C30,-6 36,-14 44,-10 C52,-6 52,10 50,24 Z" fill={fur} {...ink} />
+      <path d="M43,18 C38,0 41,-6 45,-4 C48,0 48,10 47,18 Z" fill="#f2a3a8" />
+      <path d="M80,22 C90,-6 84,-14 76,-10 C68,-6 68,10 70,24 Z" fill={fur} {...ink} />
+      <path d="M77,18 C82,0 79,-6 75,-4 C72,0 72,10 73,18 Z" fill="#f2a3a8" />
+      {/* спецовка */}
+      <path d="M12,162 L15,122 C18,100 36,92 60,92 C84,92 102,100 105,122 L108,162 Z" fill="#3c5f8f" {...ink} />
+      <path d="M44,92 L60,112 L76,92" fill="#2f4c75" {...ink} />
+      <rect x={66} y={124} width={18} height={14} rx={2} fill="#2f4c75" {...ink} />
+      <path d="M32,162 L34,126 M88,162 L86,126" stroke={INK} strokeWidth={2.5} strokeLinecap="round" />
+      {/* грива */}
+      {Array.from({ length: 14 }, (_, i) => {
+        const a = (i / 14) * Math.PI * 2;
+        return <circle key={i} cx={60 + 36 * Math.cos(a)} cy={52 + 34 * Math.sin(a)} r={11} fill={mane} {...ink} />;
+      })}
+      <circle cx={60} cy={52} r={36} fill={mane} />
+      {/* морда */}
+      <ellipse cx={60} cy={52} rx={27} ry={26} fill={fur} {...ink} />
+      <ellipse cx={60} cy={66} rx={14} ry={10} fill="#f6e2c4" {...ink} />
+      <path d="M55,58 L65,58 L60,64 Z" fill="#5a3420" {...ink} />
+      {/* заячьи резцы */}
+      <rect x={56} y={68} width={8} height={7} rx={1} fill="#fff" stroke={INK} strokeWidth={2} />
+      <path d="M60,68 L60,75" stroke={INK} strokeWidth={1.5} />
+      {sad ? (
+        <path d="M52,75 Q60,70 68,75" fill="none" stroke={INK} strokeWidth={2.5} strokeLinecap="round" />
+      ) : (
+        <path d="M51,67 Q55,71 60,67 Q65,71 69,67" fill="none" stroke={INK} strokeWidth={2.5} strokeLinecap="round" />
+      )}
+      {/* глаза с тяжёлыми веками */}
+      {[47, 73].map((x) => (
+        <g key={x}>
+          {mood === 'love' ? (
+            <path d={`M${x - 5},48 Q${x},42 ${x + 5},48`} fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
+          ) : (
+            <>
+              <ellipse cx={x} cy={47} rx={4.5} ry={5} fill="#fff" stroke={INK} strokeWidth={2} />
+              <circle cx={x} cy={48} r={2.5} fill={INK} />
+              <path d={`M${x - 5.5},${47 - 5 + 10 * lids} L${x + 5.5},${47 - 5 + 10 * lids}`} stroke={INK} strokeWidth={2.5} strokeLinecap="round" />
+              <rect x={x - 5} y={42} width={10} height={10 * lids - 0.5} fill={fur} />
+            </>
+          )}
+        </g>
+      ))}
+      {/* усы */}
+      <path d="M44,64 L34,62 M44,67 L34,68 M76,64 L86,62 M76,67 L86,68" stroke={INK} strokeWidth={1.8} strokeLinecap="round" />
     </svg>
   );
 }

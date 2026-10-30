@@ -52,6 +52,7 @@ export const FLAVORS: Flavor[] = [
   { id: 'shawarma', name: 'Шаурма', acc: 'шаурму', color: '#d9a05b', tags: ['spicy', 'sour'], unlock: 4, weird: true },
   { id: 'borscht', name: 'Борщ', acc: 'борщ', color: '#b0243a', tags: ['sour', 'sweet'], unlock: 5, weird: true },
   { id: 'noodles', name: 'Доширак', acc: 'доширак', color: '#f2c14e', tags: ['spicy', 'sweet'], unlock: 5, weird: true },
+  { id: 'protein', name: 'Протеин', acc: 'протеин', color: '#d9c7a8', tags: ['dessert', 'sweet'], unlock: 3, weird: true },
   // Секретный вкус: только за то, что угадал заказ собаки
   { id: 'dogjoy', name: 'Собачья радость', color: '#c9a36b', tags: ['sweet', 'dessert', 'fresh'], unlock: 99, secret: true },
 ];
@@ -117,6 +118,9 @@ const LOOKS = {
   helper: { skin: '#f2c9a0', hair: '#7a4a2a', hairStyle: 'short', shirt: '#f2a93b', top: 'tee', hat: 'cap', hatColor: '#e2553a', blush: true },
   rapper: { skin: '#f0c9a8', hair: '#ff6fb5', hairStyle: 'messy', shirt: '#1d1d1d', top: 'hoodie', glasses: 'sun', chain: '#f2c14e', faceTattoo: true, earring: true, mood: 'happy' },
   major: { skin: '#f3cfae', hair: '#8a5a2b', hairStyle: 'slick', shirt: '#f7a8c8', top: 'jacket', inner: '#ffffff', chain: '#f2c14e', earring: true, blush: true, mood: 'neutral' },
+  billionaire: { skin: '#ecc19c', hair: '#2b1d14', hairStyle: 'short', shirt: '#141414', top: 'tee', item: 'shaker', mood: 'smile' },
+  altgirl: { skin: '#f3d5c0', hair: '#1a1414', hairStyle: 'bob', streak: '#ff4fa3', shirt: '#1d1d1d', top: 'tee', lipstick: '#5a1030', choker: true, earring: true, mood: 'neutral' },
+  tiktoker: { skin: '#f2c9a0', hair: '#c9b8ff', hairStyle: 'messy', shirt: '#9fd8f0', top: 'hoodie', chain: '#d0d4dc', earring: true, blush: true, mood: 'happy' },
   vibecoder: { skin: '#f0c4a0', hair: '#3a2a20', hairStyle: 'bun', shirt: '#2d2f3a', top: 'hoodie', headphones: '#7c5cff', glasses: 'round', beard: 'stubble', mood: 'happy' },
   deputy: { skin: '#eab48e', hair: '#9b968f', hairStyle: 'bald', shirt: '#24324f', top: 'suit', tie: '#1f4fa8', glasses: 'round', pin: true, mood: 'smile' },
 } satisfies Record<string, Look | Look[]>;
@@ -125,6 +129,7 @@ export interface GuestRequest {
   text: string;
   tags: Tag[];
   hint?: string; // для гостей, которые не говорят прямо (собака)
+  needs?: string; // вкус, без которого гость микс не примет
 }
 
 export interface GuestType {
@@ -136,6 +141,8 @@ export interface GuestType {
   requests: GuestRequest[];
   boss?: { intro: string; win: string; lose: string; clouds: number };
   dog?: boolean; // рисуется собакой, заказ угадывается по подсказке
+  creature?: 'cheremsha'; // рисуется своим персонажем, а не конструктором людей
+  weight?: number; // как часто заходит относительно остальных (по умолчанию 1)
 }
 
 export const GUESTS: GuestType[] = [
@@ -249,6 +256,42 @@ export const GUESTS: GuestType[] = [
       { text: 'Предлагаю в первом чтении пряное, во втором — сладкое', tags: ['spicy', 'sweet'] },
     ],
   },
+  // Пародийный образ: миллиардер-аскет в чёрном. Редкий гость, без протеина микс не примет
+  {
+    id: 'billionaire', look: LOOKS.billionaire, name: 'Миллиардер в чёрном', base: 50, unlock: 3, weight: 0.15,
+    requests: [
+      { text: 'Сладкое, но полезное — с протеином', tags: ['sweet'], needs: 'protein' },
+      { text: 'Десерт с протеином. Мне за сорок, а выгляжу на двадцать пять — вот почему', tags: ['dessert'], needs: 'protein' },
+      { text: 'Фруктовое с протеином. И отключите, пожалуйста, уведомления', tags: ['fruity', 'sweet'], needs: 'protein' },
+      { text: 'С протеином. Остальное зашифруй на свой вкус', tags: ['sweet'], needs: 'protein' },
+    ],
+  },
+  {
+    id: 'cheremsha', look: LOOKS.helper /* не используется: рисуется Cheremsha */, name: 'Черемша', base: 22, unlock: 3, creature: 'cheremsha',
+    requests: [
+      { text: 'Тихо, не спеша… Сладенькое, как сгущёнка после смены на заводе', tags: ['sweet', 'dessert'] },
+      { text: 'Тихо, спокойно, без суеты. Что-нибудь свежее', tags: ['fresh'] },
+      { text: 'Как в Советском Союзе: вкусно и по ГОСТу. Фруктовое', tags: ['fruity'] },
+    ],
+  },
+  {
+    id: 'altgirl', look: LOOKS.altgirl, name: 'Альтушка с Китай-города', base: 20, unlock: 2,
+    requests: [
+      { text: 'Что-нибудь тёмное и пряное. Как моя душа', tags: ['spicy'] },
+      { text: 'Кислое. Я не такая, как все', tags: ['sour'] },
+      { text: 'Только не мейнстрим. Ну ладно, давай ягодное', tags: ['fruity', 'sweet'] },
+      { text: 'Встретимся на Китай-городе? А, я уже тут. Десертное', tags: ['dessert'] },
+    ],
+  },
+  {
+    id: 'tiktoker', look: LOOKS.tiktoker, name: 'Тиктокер Даня', base: 24, unlock: 4,
+    requests: [
+      { text: 'Сделай сладенькое, пока я снимаю тренд', tags: ['sweet'] },
+      { text: 'Что-нибудь фруктовое, чтобы залетело в реки', tags: ['fruity'] },
+      { text: 'Свежак, чтобы облако на видео красиво легло', tags: ['fresh'] },
+      { text: 'Ща станцую, а ты пока замути десертное', tags: ['dessert', 'sweet'] },
+    ],
+  },
   // Вайбкодер всегда заказывает «Тропики 8» — манго с киви (сочетание «Тропики») попадает идеально
   {
     id: 'vibecoder', look: LOOKS.vibecoder, name: 'Вайбкодер Максим', base: 22, unlock: 4,
@@ -342,7 +385,8 @@ export const upgradeCost = (u: Upgrade, lvl: number) => Math.round(u.baseCost * 
 export const mixSlots = (storageLvl: number) => Math.min(3, 1 + storageLvl);
 export const mixBonus = (storageLvl: number) => Math.max(0, storageLvl - 2) * 0.03;
 export const packZone = (bowlLvl: number, d: number) => 16 - 7 * d + bowlLvl * 3;
-export const windFactor = (kalaudLvl: number) => 1 - kalaudLvl * 0.12;
+// Калауд гасит ветер умеренно: максимум −30% на пятом уровне, мастерство всё равно нужно
+export const windFactor = (kalaudLvl: number) => 1 - kalaudLvl * 0.06;
 export const flaskMult = (flaskLvl: number) => 1 + flaskLvl * 0.08;
 export const interiorMult = (interiorLvl: number) => 1 + interiorLvl * 0.1;
 export const seats = (interiorLvl: number) => 2 + interiorLvl;

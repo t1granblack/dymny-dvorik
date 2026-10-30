@@ -126,6 +126,10 @@ export const sfx = {
     noise(0.5, 3000, { vol: 0.12, type: 'highpass' });
     tone(140, 0.12, { type: 'triangle', vol: 0.12 });
   },
+  blow: () => {
+    noise(0.35, 700, { vol: 0.14, type: 'lowpass' });
+    noise(0.25, 3500, { vol: 0.06, type: 'highpass', at: 0.1 });
+  },
   coalOff: () => tone(300, 0.1, { type: 'triangle', vol: 0.1, slide: 200 }),
   lid: () => {
     tone(1400, 0.08, { type: 'square', vol: 0.04 });

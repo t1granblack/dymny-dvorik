@@ -377,6 +377,14 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M34,4 L26,20 M38,6 L30,20" stroke="#b07a50" strokeWidth={2.5} strokeLinecap="round" />
     </>
   ),
+  protein: (
+    <>
+      <path d="M14,14 L34,14 L32,44 L16,44 Z" fill="#f4f1ea" {...ink} />
+      <rect x={12} y={6} width={24} height={9} rx={3} fill="#2a2a2a" {...ink} />
+      <rect x={16} y={24} width={16} height={12} fill="#3a7fc4" />
+      <path d="M19,30 L29,30" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
+    </>
+  ),
   dogjoy: (
     <>
       <path d="M12,18 C6,14 8,6 14,8 C16,4 24,6 21,12 L30,21 C36,18 44,20 40,26 C44,30 36,36 32,30 L23,21 C18,26 10,24 12,18 Z" fill="#f6e2c4" {...ink} />
