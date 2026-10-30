@@ -143,6 +143,7 @@ export interface Signature {
   parts: MixPart[];
   served: number; // сколько раз подан
   best: number; // лучший результат в звёздах
+  from?: string; // имя друга, если микс пришёл по ссылке
 }
 
 export const MAX_SIGNATURES = 6;
@@ -152,11 +153,54 @@ export const SIGNATURE_BONUS = 0.3; // надбавка к оплате, есл�
 export const signatureUsable = (sig: Signature, save: Save, slots: number) =>
   sig.parts.length <= slots && sig.parts.every((p) => unlockedFlavors(save.level, save.secretFlavors).some((f) => f.id === p.id));
 
+// ---------- Микс в ссылке ----------
+// Ссылка t.me/бот/приложение?startapp=mix_… несёт сам микс: друг открывает игру, и микс уже у него.
+// Telegram пропускает в параметре только A-Z, a-z, 0-9, _ и -, поэтому JSON кодируем в base64url.
+
+const MIX_PREFIX = 'mix_';
+
+export function encodeMix(sig: Signature, author?: string): string {
+  const payload = JSON.stringify({ n: sig.name, p: sig.parts.map((p) => [p.id, p.weight]), a: author?.slice(0, 24) });
+  const bytes = new TextEncoder().encode(payload);
+  const b64 = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return MIX_PREFIX + b64;
+}
+
+/** Разбор присланного микса. Всё непонятное (чужие вкусы, мусор в ссылке) — null */
+export function decodeMix(param: string): Signature | null {
+  if (!param.startsWith(MIX_PREFIX)) return null;
+  try {
+    const b64 = param.slice(MIX_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    const parts: MixPart[] = (Array.isArray(data.p) ? data.p : [])
+      .slice(0, 3)
+      .filter((x: unknown) => Array.isArray(x) && FLAVORS.some((f) => f.id === x[0]))
+      .map(([id, w]: [string, number]) => ({ id, weight: Math.min(10, Math.max(1, Math.round(Number(w) || 5))) }));
+    if (!parts.length) return null;
+    const name = String(data.n ?? '').trim().slice(0, 28) || 'Микс друга';
+    const from = data.a ? String(data.a).slice(0, 24) : undefined;
+    return { id: `gift-${Date.now()}`, name, parts, served: 0, best: 0, from };
+  } catch {
+    return null;
+  }
+}
+
+const sameMix = (a: Signature, b: Signature) =>
+  a.name === b.name && a.parts.length === b.parts.length && a.parts.every((p, i) => p.id === b.parts[i].id && p.weight === b.parts[i].weight);
+
+/** Кладёт присланный микс к фирменным. Уже есть — не дублируем; мест нет — сообщаем */
+export function importSignature(save: Save, sig: Signature): { save: Save; result: 'added' | 'exists' | 'full' } {
+  if (save.signatures.some((s) => sameMix(s, sig))) return { save, result: 'exists' };
+  if (save.signatures.length >= MAX_SIGNATURES) return { save, result: 'full' };
+  return { save: { ...save, signatures: [...save.signatures, sig] }, result: 'added' };
+}
+
 export function signatureText(sig: Signature) {
   const parts = shares(sig.parts)
     .map((s) => `${Math.round(s.share * 100)}% ${flavorById(s.id).name.toLowerCase()}`)
     .join(', ');
-  return `Мой фирменный микс «${sig.name}»: ${parts}. Сможешь лучше? Заходи в «Дымный дворик»!`;
+  return `Мой фирменный микс «${sig.name}»: ${parts}. Жми на ссылку — он появится у тебя в «Дымном дворике»!`;
 }
 
 export const shares = (parts: MixPart[]) => {

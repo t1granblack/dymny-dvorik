@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Guest, Save, canAffordUpgrade, pendingIncome, helperRate } from '../game/state';
 import { GuestType, HELPER, xpToNext } from '../game/data';
-import { haptic } from '../game/telegram';
+import { addToHomeScreen, haptic, homeScreenStatus, tgUser } from '../game/telegram';
 import { audioPrefs, setMusic, setSfx, sfx } from '../game/sound';
 import { Character, Cheremsha, Dog } from '../art/Character';
 import type { Mood } from '../art/Character';
@@ -59,6 +59,7 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
 
   const pending = pendingIncome(save);
   const decor = interiorDecor(save.upgrades.interior);
+  const owner = tgUser(); // портрет хозяина кальянной — аватарка игрока из Telegram
   const [first, ...rest] = queue;
 
   const collect = () => {
@@ -78,6 +79,11 @@ export default function Hall({ save, setSave, queue, onServe, onOpenUpgrades, le
           <div className="window"><Icon name="moon" size={22} /></div>
           <div className={'sign' + (decor.neon ? ' neon' : '')}>Дымный дворик</div>
           <div className="door" />
+          {owner?.first_name && (
+            <div className="owner-frame" title={`Хозяин: ${owner.first_name}`}>
+              {owner.photo_url ? <img src={owner.photo_url} alt="" /> : <span>{owner.first_name[0]}</span>}
+            </div>
+          )}
           {decor.plant && <div className="plant" />}
           {decor.music && (
             <div className="speaker">
@@ -218,6 +224,11 @@ function AudioMenu() {
     setPrefs({ ...audioPrefs() });
   };
   const allOff = !prefs.sfx && !prefs.music;
+  // Ярлык игры на экран телефона — предлагаем, только если Telegram это умеет и ярлыка ещё нет
+  const [homeMissing, setHomeMissing] = useState(false);
+  useEffect(() => {
+    if (open) homeScreenStatus().then((s) => setHomeMissing(s === 'missing'));
+  }, [open]);
   return (
     <div className="audio-menu">
       <button className="money icon-btn" onClick={() => setOpen(!open)} aria-label="Звук">
@@ -232,6 +243,11 @@ function AudioMenu() {
           <button className={'switch' + (prefs.music ? ' on' : '')} onClick={() => toggle('music')}>
             <Icon name="note" size={20} /> Музыка <i />
           </button>
+          {homeMissing && (
+            <button className="switch home-add" onClick={() => { addToHomeScreen(); setOpen(false); }}>
+              <Icon name="hall" size={20} /> На экран «Домой»
+            </button>
+          )}
         </div>
       )}
     </div>

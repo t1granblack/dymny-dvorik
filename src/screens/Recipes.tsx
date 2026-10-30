@@ -1,18 +1,27 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../art/Icon';
-import { MAX_SIGNATURES, Save, Signature, shares, signatureText } from '../game/state';
-import { BOSS, COMBOS, DOG, FLAVORS, GUESTS, TAG_LABEL, flavorById } from '../game/data';
-import { shareText } from '../game/telegram';
+import { MAX_SIGNATURES, Save, Signature, encodeMix, shares, signatureText, signatureUsable } from '../game/state';
+import { BOSS, COMBOS, DOG, FLAVORS, GUESTS, TAG_LABEL, flavorById, mixSlots } from '../game/data';
+import { GAME_URL, shareText, tgUser } from '../game/telegram';
 import { Avatar, TopBar } from './Hall';
 import SignatureEditor from './SignatureEditor';
+
+/** Почему фирменный пока нельзя подать: закрытый вкус или мало слотов в чаше */
+function lockReason(sig: Signature, save: Save) {
+  const locked = sig.parts.map((p) => flavorById(p.id)).find((f) => f.unlock > save.level && !save.secretFlavors.includes(f.id));
+  if (locked) return `${locked.name} откроется на ур. ${locked.unlock}`;
+  return `нужно ${sig.parts.length} слота в чаше — прокачай склад`;
+}
 
 export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Save) => void }) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const share = async (sig: Signature) => {
-    const how = await shareText(signatureText(sig));
+    // Ссылка несёт сам микс: друг откроет игру — и микс уже у него в фирменных
+    const link = `${GAME_URL}?startapp=${encodeMix(sig, tgUser()?.first_name)}`;
+    const how = await shareText(signatureText(sig), link);
     if (how === 'copied') setNote('Текст скопирован — вставь его в любой чат');
     if (how === 'failed') setNote('Не получилось поделиться');
   };
@@ -34,6 +43,10 @@ export default function Recipes({ save, setSave }: { save: Save; setSave: (s: Sa
                 {shares(sig.parts).map((s) => `${Math.round(s.share * 100)}% ${flavorById(s.id).name.toLowerCase()}`).join(' · ')}
               </div>
               <div className="muted small">
+                {sig.from && <>От друга: {sig.from} · </>}
+                {!signatureUsable(sig, save, mixSlots(save.upgrades.storage)) && (
+                  <span className="sig-locked">{lockReason(sig, save)} · </span>
+                )}
                 {sig.served ? `Подан ${sig.served} раз · лучший ${'★'.repeat(sig.best)}` : 'Ещё ни разу не подан'}
               </div>
             </div>

@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { Icon } from '../art/Icon';
 import { MixPart, ServeResult, shares } from '../game/state';
 import { GuestType, flavorById } from '../game/data';
-import { haptic } from '../game/telegram';
+import { GAME_URL, haptic, shareStory, storiesSupported } from '../game/telegram';
 import { reactionLine, reactionMood } from '../game/reactions';
 import { sfx } from '../game/sound';
 import { Person } from '../screens/Hall';
@@ -82,6 +82,14 @@ export default function ResultStep({ guest, result: r, parts, bossLine, onNext }
       ))}
 
       <div className="actions">
+        {r.stars === 3 && storiesSupported() && (
+          <button
+            className="btn big"
+            onClick={() => shareStory('stories/three-stars.png', `Шедевр на 3 звезды в «Дымном дворике»! Сможешь так же? ${GAME_URL}`)}
+          >
+            <Icon name="share" size={20} /> В историю
+          </button>
+        )}
         <button className="btn primary big grow" onClick={onNext}>Дальше</button>
       </div>
     </div>

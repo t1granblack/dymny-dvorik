@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from './art/Icon';
 import {
   Save, loadSave, storeSave, applyResult, ServeResult, Guest, randomGuest, canAffordUpgrade,
-  bossDue, withNewGuest, parseSave,
+  bossDue, withNewGuest, parseSave, decodeMix, importSignature,
 } from './game/state';
 import { seats } from './game/data';
-import { bindBackButton, cloudAvailable, cloudLoad, cloudSave, haptic } from './game/telegram';
+import {
+  bindBackButton, cloudAvailable, cloudLoad, cloudSave, haptic, setClosingConfirmation, startParam, tgUser,
+} from './game/telegram';
 import AgeGate from './screens/AgeGate';
 import Hall from './screens/Hall';
 import type { Leaving } from './screens/Hall';
@@ -139,6 +141,34 @@ export default function App() {
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);
   }, []);
+
+  // Игра открыта по ссылке с миксом друга — кладём его к фирменным. Иначе просто здороваемся по имени
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (!ready || !save.ageOk || greeted.current) return;
+    greeted.current = true;
+    const gift = decodeMix(startParam());
+    if (gift) {
+      const { save: next, result } = importSignature(save, gift);
+      setSave(next);
+      const who = gift.from ? ` от ${gift.from}` : '';
+      if (result === 'added') {
+        setTab('recipes');
+        setToast(`Микс${who} «${gift.name}» — теперь в фирменных!`);
+      } else if (result === 'full') {
+        setToast('Фирменных уже 6 — удали один, чтобы принять микс друга');
+      }
+      return;
+    }
+    const name = tgUser()?.first_name;
+    if (name) setToast(`Привет, ${name}! Кальянная открыта`);
+  }, [ready, save.ageOk]);
+
+  // Посреди обслуживания Telegram переспросит, точно ли закрыть игру
+  useEffect(() => {
+    setClosingConfirmation(!!serving);
+    return () => setClosingConfirmation(false);
+  }, [serving]);
 
   useEffect(() => bindBackButton(serving ? () => setServing(null) : null), [serving]);
 

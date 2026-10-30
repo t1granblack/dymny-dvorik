@@ -14,6 +14,17 @@ interface TgWebApp {
   isVersionAtLeast?(version: string): boolean;
   openTelegramLink?(url: string): void;
   CloudStorage?: TgCloudStorage;
+  initDataUnsafe?: { user?: { first_name?: string; photo_url?: string }; start_param?: string };
+  setHeaderColor?(color: string): void;
+  setBackgroundColor?(color: string): void;
+  setBottomBarColor?(color: string): void;
+  disableVerticalSwipes?(): void;
+  lockOrientation?(): void;
+  enableClosingConfirmation?(): void;
+  disableClosingConfirmation?(): void;
+  shareToStory?(mediaUrl: string, params?: { text?: string; widget_link?: { url: string; name?: string } }): void;
+  checkHomeScreenStatus?(cb: (status: string) => void): void;
+  addToHomeScreen?(): void;
 }
 
 export interface TgCloudStorage {
@@ -31,6 +42,63 @@ export function initTelegram() {
   app.ready();
   app.expand();
   if (app.colorScheme) document.documentElement.dataset.theme = app.colorScheme;
+  // Шапка и фон Telegram в цвет игры, чтобы окно выглядело цельным
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#2a1d1a';
+  if (since('6.1')) {
+    app.setHeaderColor?.(bg);
+    app.setBackgroundColor?.(bg);
+  }
+  if (since('7.10')) app.setBottomBarColor?.(bg);
+  // Свайп вниз по чаше не должен сворачивать игру; экран всегда вертикальный
+  if (since('7.7')) app.disableVerticalSwipes?.();
+  if (since('8.0')) app.lockOrientation?.();
+}
+
+/** Методы SDK появлялись в разных версиях Telegram — вызываем только поддерживаемые */
+const since = (version: string) => !!tg()?.isVersionAtLeast?.(version);
+
+// ---------- Игрок и параметр запуска ----------
+
+export const tgUser = () => {
+  const app = tg();
+  return app?.initData ? app.initDataUnsafe?.user : undefined;
+};
+
+/**
+ * Параметр из ссылки t.me/бот/приложение?startapp=… — так открываются присланные миксы.
+ * Telegram кладёт его и в initDataUnsafe, и в адрес страницы (tgWebAppStartParam) — второе удобно для проверки в браузере.
+ */
+export const startParam = () =>
+  tg()?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('tgWebAppStartParam') || '';
+
+/** «Точно закрыть?» — включаем, пока игрок обслуживает гостя */
+export function setClosingConfirmation(on: boolean) {
+  const app = tg();
+  if (!app?.initData || !since('6.2')) return;
+  if (on) app.enableClosingConfirmation?.();
+  else app.disableClosingConfirmation?.();
+}
+
+// ---------- Ярлык на экране «Домой» ----------
+
+export const homeScreenSupported = () => !!tg()?.initData && since('8.0');
+
+export function homeScreenStatus(): Promise<string> {
+  const app = tg();
+  if (!homeScreenSupported() || !app?.checkHomeScreenStatus) return Promise.resolve('unsupported');
+  return new Promise((resolve) => app.checkHomeScreenStatus!(resolve));
+}
+
+export const addToHomeScreen = () => tg()?.addToHomeScreen?.();
+
+// ---------- Истории ----------
+
+export const storiesSupported = () => !!tg()?.initData && since('7.8');
+
+/** Публикация в историю: картинка лежит рядом с игрой, ссылка-виджет ведёт в бота (виджет видят премиум-аккаунты) */
+export function shareStory(mediaPath: string, text: string) {
+  const url = new URL(mediaPath, location.href).href;
+  tg()?.shareToStory?.(url, { text, widget_link: { url: GAME_URL, name: 'Играть' } });
 }
 
 export const haptic = {
@@ -91,18 +159,16 @@ export const GAME_URL = 'https://t.me/dymny_dvorik_bot/Dymny_Dvorik';
 
 /**
  * В Telegram открывает выбор чата для отправки, в браузере — системное «Поделиться»
- * или копирует текст в буфер. Возвращает, что получилось, чтобы показать подсказку.
+ * или копирует текст в буфер. link — своя ссылка (например, с присланным миксом) вместо общей на игру.
+ * Возвращает, что получилось, чтобы показать подсказку.
  */
-export async function shareText(text: string): Promise<'telegram' | 'shared' | 'copied' | 'failed'> {
+export async function shareText(text: string, link = GAME_URL): Promise<'telegram' | 'shared' | 'copied' | 'failed'> {
   const app = tg();
   if (app?.initData && app.openTelegramLink) {
-    const q = GAME_URL
-      ? `url=${encodeURIComponent(GAME_URL)}&text=${encodeURIComponent(text)}`
-      : `url=${encodeURIComponent(text)}`;
-    app.openTelegramLink(`https://t.me/share/url?${q}`);
+    app.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
     return 'telegram';
   }
-  const full = GAME_URL ? `${text}\n${GAME_URL}` : text;
+  const full = `${text}\n${link}`;
   try {
     if (navigator.share) {
       await navigator.share({ text: full });
