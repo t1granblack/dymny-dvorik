@@ -3,9 +3,9 @@
 // Пока POSTHOG_KEY пустой, всё молча выключено.
 
 /** Ключ проекта PostHog (phc_…). Он публичный — его можно хранить в коде */
-const POSTHOG_KEY = '';
+const POSTHOG_KEY = 'phc_xCmn5xQXbCJ5tGE9iRU5b3aF8GcPbcbpmo6DxcmdDehW';
 /** Сервер PostHog: EU — https://eu.i.posthog.com, US — https://us.i.posthog.com */
-const POSTHOG_HOST = 'https://eu.i.posthog.com';
+const POSTHOG_HOST = 'https://us.i.posthog.com';
 
 const SESSION_GAP = 30 * 60 * 1000; // 30 минут без действий — новая сессия
 const ID_KEY = 'dymny-dvorik-anon-id';
@@ -46,6 +46,8 @@ export const analyticsEnabled = () => !!POSTHOG_KEY;
 
 export function initAnalytics(opts: { tgUserId?: number; platform: 'telegram' | 'web'; lang?: string }) {
   if (!POSTHOG_KEY) return;
+  // При разработке ничего не шлём, чтобы не портить статистику живых игроков (включить: ?analytics)
+  if (import.meta.env.DEV && !location.search.includes('analytics')) return;
   idPromise = anonId(opts.tgUserId);
   base = { platform: opts.platform, lang: opts.lang, $lib: 'dymny-dvorik' };
   setInterval(() => flush(false), 5000);
@@ -57,7 +59,7 @@ export function initAnalytics(opts: { tgUserId?: number; platform: 'telegram' | 
 
 /** Записать событие. Свойства — только игровые данные, без личной информации */
 export function track(event: string, properties: Record<string, unknown> = {}) {
-  if (!POSTHOG_KEY) return;
+  if (!POSTHOG_KEY || !idPromise) return;
   const now = Date.now();
   if (!sessionId || now - lastActivity > SESSION_GAP) sessionId = uuid();
   lastActivity = now;
